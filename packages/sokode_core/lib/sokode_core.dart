@@ -3,3 +3,4 @@
 library;
 
 export 'src/direction.dart';
+export 'src/tile.dart';
