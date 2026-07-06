@@ -4,3 +4,4 @@ library;
 
 export 'src/direction.dart';
 export 'src/tile.dart';
+export 'src/level.dart';
