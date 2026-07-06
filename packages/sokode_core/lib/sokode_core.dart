@@ -1,0 +1,3 @@
+/// Pure, deterministic core for Sokode. No Flutter imports allowed —
+/// enforced by test/import_boundary_test.dart.
+library;
