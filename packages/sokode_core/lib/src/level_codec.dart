@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'crc32.dart';
+import 'decode_error.dart';
 import 'direction.dart';
 import 'level.dart';
+import 'tile.dart';
 
 /// Protocol constants — wire format, never tune at runtime (ENCODING.md).
 const int codecVersion = 1;
@@ -69,4 +71,146 @@ void _addU32(BytesBuilder bytes, int value) {
   bytes.addByte((value >>> 16) & 0xFF);
   bytes.addByte((value >>> 8) & 0xFF);
   bytes.addByte(value & 0xFF);
+}
+
+/// Decodes an untrusted share code (ENCODING.md check order). Total:
+/// returns DecodeFailure for every malformed input, never throws, and
+/// never allocates from unvalidated sizes — dimensions are cap-checked
+/// before the tile list exists, and the Level is built with exactly
+/// width*height tiles (its length invariant holds by construction).
+DecodeOutcome decode(String code) {
+  if (code.isEmpty || !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(code)) {
+    return const DecodeFailure(DecodeError.badCharset);
+  }
+  final Uint8List data;
+  try {
+    data = base64Url.decode(code.padRight((code.length + 3) & ~3, '='));
+  } on FormatException {
+    return const DecodeFailure(DecodeError.badCharset);
+  }
+  if (data.length < 11) return const DecodeFailure(DecodeError.truncated);
+  if (data[0] != 0x53 || data[1] != 0x4B) {
+    return const DecodeFailure(DecodeError.badMagic);
+  }
+  final body = Uint8List.sublistView(data, 0, data.length - 4);
+  final storedCrc = (data[data.length - 4] << 24) |
+      (data[data.length - 3] << 16) |
+      (data[data.length - 2] << 8) |
+      data[data.length - 1];
+  if (crc32(body) != storedCrc) {
+    return const DecodeFailure(DecodeError.badChecksum);
+  }
+  if (data[2] != codecVersion) {
+    return const DecodeFailure(DecodeError.unsupportedVersion);
+  }
+  if (data[3] != codecRulesetSokobanPlus) {
+    return const DecodeFailure(DecodeError.unsupportedRuleset);
+  }
+  final flags = data[4];
+  if (flags & 0x01 == 0) {
+    return const DecodeFailure(DecodeError.missingSolution);
+  }
+  if (flags & 0xFE != 0) {
+    return const DecodeFailure(DecodeError.reservedFlagBits);
+  }
+  final width = data[5];
+  final height = data[6];
+  if (width < codecMinDimension ||
+      width > codecMaxDimension ||
+      height < codecMinDimension ||
+      height > codecMaxDimension) {
+    return const DecodeFailure(DecodeError.dimensionOutOfBounds);
+  }
+  final reader = _ByteReader(body, 7);
+  final cellCount = width * height;
+  final tileBytes = reader.readBytes((cellCount + 1) >> 1);
+  if (tileBytes == null) return const DecodeFailure(DecodeError.truncated);
+  final tiles = <Tile>[];
+  for (var i = 0; i < cellCount; i++) {
+    final byte = tileBytes[i >> 1];
+    final nibble = i.isEven ? byte >> 4 : byte & 0x0F;
+    final tile = Tile.fromNibble(nibble);
+    if (tile == null) return const DecodeFailure(DecodeError.invalidTile);
+    tiles.add(tile);
+  }
+  if (cellCount.isOdd && (tileBytes[tileBytes.length - 1] & 0x0F) != 0) {
+    return const DecodeFailure(DecodeError.invalidTile);
+  }
+  final playerIndex = reader.readU16();
+  if (playerIndex == null) return const DecodeFailure(DecodeError.truncated);
+  if (playerIndex >= cellCount) {
+    return const DecodeFailure(DecodeError.entityOutOfBounds);
+  }
+  final crateCount = reader.readU8();
+  if (crateCount == null) return const DecodeFailure(DecodeError.truncated);
+  final crates = <int>[];
+  for (var i = 0; i < crateCount; i++) {
+    final crate = reader.readU16();
+    if (crate == null) return const DecodeFailure(DecodeError.truncated);
+    if (crate >= cellCount) {
+      return const DecodeFailure(DecodeError.entityOutOfBounds);
+    }
+    crates.add(crate);
+  }
+  final moveCount = reader.readU16();
+  if (moveCount == null) return const DecodeFailure(DecodeError.truncated);
+  if (moveCount == 0) {
+    return const DecodeFailure(DecodeError.missingSolution);
+  }
+  if (moveCount > codecMaxSolutionMoves) {
+    return const DecodeFailure(DecodeError.solutionTooLong);
+  }
+  final moveBytes = reader.readBytes((moveCount + 3) >> 2);
+  if (moveBytes == null) return const DecodeFailure(DecodeError.truncated);
+  final solution = <Direction>[];
+  for (var j = 0; j < moveCount; j++) {
+    final bits = (moveBytes[j >> 2] >> (6 - 2 * (j & 3))) & 0x03;
+    solution.add(Direction.fromEncoding(bits));
+  }
+  final usedSlots = moveCount & 3;
+  if (usedSlots != 0) {
+    final padMask = (1 << (8 - 2 * usedSlots)) - 1;
+    if ((moveBytes[moveBytes.length - 1] & padMask) != 0) {
+      return const DecodeFailure(DecodeError.payloadLengthMismatch);
+    }
+  }
+  if (!reader.atEnd) {
+    return const DecodeFailure(DecodeError.payloadLengthMismatch);
+  }
+  return DecodeSuccess(
+    Level(
+      width: width,
+      height: height,
+      tiles: tiles,
+      playerIndex: playerIndex,
+      crateIndexes: crates,
+    ),
+    solution,
+  );
+}
+
+/// Bounds-checked sequential reader; every read returns null past the end.
+class _ByteReader {
+  _ByteReader(this._data, this._offset);
+
+  final Uint8List _data;
+  int _offset;
+
+  bool get atEnd => _offset == _data.length;
+
+  int? readU8() => _offset + 1 <= _data.length ? _data[_offset++] : null;
+
+  int? readU16() {
+    if (_offset + 2 > _data.length) return null;
+    final value = (_data[_offset] << 8) | _data[_offset + 1];
+    _offset += 2;
+    return value;
+  }
+
+  Uint8List? readBytes(int count) {
+    if (_offset + count > _data.length) return null;
+    final view = Uint8List.sublistView(_data, _offset, _offset + count);
+    _offset += count;
+    return view;
+  }
 }
