@@ -17,3 +17,4 @@ export 'src/decode_error.dart';
 export 'src/level_codec.dart';
 export 'src/replay_verifier.dart';
 export 'src/level_import.dart';
+export 'src/title_generator.dart';
