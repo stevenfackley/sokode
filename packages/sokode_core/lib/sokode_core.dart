@@ -6,3 +6,7 @@ export 'src/direction.dart';
 export 'src/tile.dart';
 export 'src/level.dart';
 export 'src/grid_state.dart';
+export 'src/ruleset.dart';
+export 'src/sokoban_plus.dart';
+export 'src/step_result.dart';
+export 'src/validation.dart';
