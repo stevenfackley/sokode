@@ -14,3 +14,4 @@ export 'src/step_result.dart';
 export 'src/validation.dart';
 export 'src/crc32.dart';
 export 'src/decode_error.dart';
+export 'src/level_codec.dart';
