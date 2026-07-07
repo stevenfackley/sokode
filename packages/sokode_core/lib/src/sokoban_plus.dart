@@ -73,10 +73,20 @@ class SokobanPlus implements RuleSet {
   }
 
   @override
-  bool isSolved(GridState state) => false; // Task 10
+  bool isSolved(GridState state) {
+    for (var i = 0; i < state.level.cellCount; i++) {
+      if (state.level.tiles[i] == Tile.target && !state.hasCrateAt(i)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @override
-  List<Direction> legalActions(GridState state) => const []; // Task 10
+  List<Direction> legalActions(GridState state) => [
+        for (final d in Direction.values)
+          if (step(state, d) is Moved) d,
+      ];
 
   @override
   ValidationResult validateStructure(Level level) =>
