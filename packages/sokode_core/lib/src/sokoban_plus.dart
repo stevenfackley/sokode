@@ -17,9 +17,28 @@ class SokobanPlus implements RuleSet {
     if (target == null) return const Blocked();
     if (!_canEnter(state, target, action)) return const Blocked();
     if (state.hasCrateAt(target)) {
-      return const Blocked(); // pushing lands in Task 7
+      final beyond = _neighbor(state.level, target, action);
+      if (beyond == null) return const Blocked();
+      if (state.hasCrateAt(beyond)) return const Blocked();
+      if (!_canEnter(state, beyond, action)) return const Blocked();
+      return Moved(_withPush(state, playerTo: target, crateTo: beyond));
     }
     return Moved(_movePlayer(state, target));
+  }
+
+  /// Crate leaves [playerTo] (the player takes its cell) and lands on
+  /// [crateTo]. The GridState constructor re-sorts, keeping canonical order.
+  GridState _withPush(GridState state,
+      {required int playerTo, required int crateTo}) {
+    final crates = state.crateIndexes.toList()
+      ..remove(playerTo)
+      ..add(crateTo);
+    return GridState(
+      level: state.level,
+      playerIndex: playerTo,
+      crateIndexes: crates,
+      openGateIndexes: state.openGateIndexes,
+    );
   }
 
   @override
