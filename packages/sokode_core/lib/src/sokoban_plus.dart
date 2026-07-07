@@ -89,8 +89,36 @@ class SokobanPlus implements RuleSet {
       ];
 
   @override
-  ValidationResult validateStructure(Level level) =>
-      const ValidationResult([]); // Task 11
+  ValidationResult validateStructure(Level level) {
+    final errors = <ValidationError>[];
+    if (level.width < 4 ||
+        level.width > 32 ||
+        level.height < 4 ||
+        level.height > 32) {
+      errors.add(ValidationError.dimensionOutOfBounds);
+    }
+    final targets = level.tiles.where((t) => t == Tile.target).length;
+    if (targets == 0) errors.add(ValidationError.noTargets);
+    if (level.crateIndexes.length < targets) {
+      errors.add(ValidationError.fewerCratesThanTargets);
+    }
+    bool blocked(Tile t) =>
+        t == Tile.wall || t == Tile.gateAClosed || t == Tile.gateBClosed;
+    for (final e in [level.playerIndex, ...level.crateIndexes]) {
+      if (e < 0 || e >= level.cellCount) {
+        errors.add(ValidationError.entityOutOfBounds);
+      } else if (blocked(level.tiles[e])) {
+        errors.add(ValidationError.entityOnBlockedTile);
+      }
+    }
+    if (level.crateIndexes.toSet().length != level.crateIndexes.length) {
+      errors.add(ValidationError.duplicateCrate);
+    }
+    if (level.crateIndexes.contains(level.playerIndex)) {
+      errors.add(ValidationError.playerOnCrate);
+    }
+    return ValidationResult(errors);
+  }
 
   /// Neighbor cell index in [dir], or null when off-board (edges block —
   /// no wrap-around; index±1 alone would wrap rows, hence x/y math).
