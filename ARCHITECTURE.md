@@ -41,3 +41,17 @@ Spec §2.3, plus one addendum introduced by Plan 01:
   inert today — toggles never move entities — kept fixed as insurance)
 - Undo/reset are shell concerns; replays contain final action sequences
   only (2-bit alphabet: up=0, right=1, down=2, left=3).
+
+## Share-code codec and the import gate (Plan 02)
+
+`ENCODING.md` is the wire-format spec of record. `decode` is total —
+13-entry `DecodeError` taxonomy, checks in the documented order, no
+allocation sized from unvalidated data (dimension caps precede the tile
+read; `Level` is built with exactly width*height tiles, so its length
+invariant holds by construction in release builds).
+
+The import pipeline (`LevelImporter`) IS the publish gate: decode →
+`validateStructure` → `ReplayVerifier.verify(embedded solution)`, all
+through the same `Simulation` as play. Codes are proof-carrying; a forged
+impossible level fails at verify. CRC32 is integrity-only by design —
+tamper-resistance without a server would be theater (SECURITY.md).
