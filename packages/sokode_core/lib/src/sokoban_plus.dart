@@ -23,7 +23,10 @@ class SokobanPlus implements RuleSet {
       if (!_canEnter(state, beyond, action)) return const Blocked();
       var next = _withPush(state, playerTo: target, crateTo: beyond);
       // Deterministic order (ARCHITECTURE.md): crate toggle before player
-      // toggle, both against post-move occupancy.
+      // toggle, both against post-move occupancy. The order is
+      // observationally inert today (toggles never move entities, so both
+      // fires see identical occupancy) — fixed as insurance, not because
+      // outcomes differ.
       next = _fireSwitch(next, beyond);
       next = _fireSwitch(next, target);
       return Moved(next);
@@ -117,7 +120,7 @@ class SokobanPlus implements RuleSet {
     if (level.crateIndexes.contains(level.playerIndex)) {
       errors.add(ValidationError.playerOnCrate);
     }
-    return ValidationResult(errors);
+    return ValidationResult(errors.toSet().toList());
   }
 
   /// Neighbor cell index in [dir], or null when off-board (edges block —

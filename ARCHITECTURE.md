@@ -37,6 +37,7 @@ Spec §2.3, plus one addendum introduced by Plan 01:
 - Initial placement fires nothing.
 - **Addendum:** when one push lands the crate and the player on switches in
   the same step, the crate's toggle resolves before the player's, both
-  evaluated against post-move occupancy. (`SokobanPlus.step`)
+  evaluated against post-move occupancy. (`SokobanPlus.step`) (observationally
+  inert today — toggles never move entities — kept fixed as insurance)
 - Undo/reset are shell concerns; replays contain final action sequences
   only (2-bit alphabet: up=0, right=1, down=2, left=3).

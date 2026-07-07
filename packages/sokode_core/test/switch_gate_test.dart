@@ -79,4 +79,33 @@ void main() {
     expect(state.isGateOpenAt(10), isFalse,
         reason: 'two toggles = net closed; proves both arrivals fire');
   });
+
+  test('a gate occupied by the PLAYER also refuses to close', () {
+    // Push lands the player on an open channel-A gate in the same step the
+    // crate lands on a channel-A switch: the player-occupied gate must
+    // stay open; an unoccupied gate of the same channel closes.
+    final tiles = [
+      Tile.wall, Tile.wall, Tile.wall, Tile.wall, Tile.wall, Tile.wall,
+      Tile.wall, Tile.wall, //
+      Tile.wall, Tile.floor, Tile.gateAOpen, Tile.switchA, Tile.gateAOpen,
+      Tile.floor, Tile.floor, Tile.wall, //
+      Tile.wall, Tile.wall, Tile.wall, Tile.wall, Tile.wall, Tile.wall,
+      Tile.wall, Tile.wall,
+    ];
+    final level = Level(
+      width: 8,
+      height: 3,
+      tiles: tiles,
+      playerIndex: 9,
+      crateIndexes: const [10], // crate starts on the open gate
+    );
+    var state = GridState.initial(level);
+    state = (rules.step(state, Direction.right) as Moved).state;
+    expect(state.playerIndex, 10);
+    expect(state.crateIndexes, [11]);
+    expect(state.isGateOpenAt(10), isTrue,
+        reason: 'player-occupied gate must not close');
+    expect(state.isGateOpenAt(12), isFalse,
+        reason: 'unoccupied same-channel gate closes');
+  });
 }
