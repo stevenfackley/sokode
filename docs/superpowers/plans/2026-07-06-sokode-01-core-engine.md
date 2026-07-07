@@ -615,7 +615,7 @@ void main() {
     // placement must NOT fire toggles.
     final ascii = levelFromAscii([
       '#####',
-      '# a]#',
+      '#@a]#',
       '#####',
     ]);
     final level = Level(
