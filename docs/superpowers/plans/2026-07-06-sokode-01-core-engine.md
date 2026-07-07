@@ -681,6 +681,9 @@ import 'level.dart';
 ///
 /// Canonical form: `crateIndexes` and `openGateIndexes` are always sorted
 /// ascending — equality, hashing, and stateDigest rely on it.
+///
+/// Equality is level-agnostic (player/crates/gates only) — never mix
+/// states from different levels in a shared set or map.
 class GridState {
   GridState({
     required this.level,
@@ -866,7 +869,8 @@ enum ValidationError {
 
 /// Result of RuleSet.validateStructure. Empty errors == valid.
 class ValidationResult {
-  const ValidationResult(this.errors);
+  ValidationResult(List<ValidationError> errors)
+      : errors = List.unmodifiable(errors);
   final List<ValidationError> errors;
   bool get isValid => errors.isEmpty;
 }
@@ -935,7 +939,7 @@ class SokobanPlus implements RuleSet {
 
   @override
   ValidationResult validateStructure(Level level) =>
-      const ValidationResult([]); // Task 11
+      ValidationResult(const []); // Task 11
 
   /// Neighbor cell index in [dir], or null when off-board (edges block —
   /// no wrap-around; index±1 alone would wrap rows, hence x/y math).
