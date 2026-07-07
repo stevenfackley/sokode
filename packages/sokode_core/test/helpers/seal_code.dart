@@ -23,3 +23,7 @@ List<int> u16(int value) => [(value >> 8) & 0xFF, value & 0xFF];
 /// Decodes a share-code string back to raw bytes (for mutation tests).
 List<int> rawBytes(String code) =>
     base64Url.decode(code.padRight((code.length + 3) & ~3, '='));
+
+/// Base64url without padding over arbitrary raw bytes (no CRC handling).
+String base64UrlNoPad(List<int> bytes) =>
+    base64Url.encode(bytes).replaceAll('=', '');
