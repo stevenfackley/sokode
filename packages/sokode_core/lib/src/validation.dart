@@ -11,7 +11,8 @@ enum ValidationError {
 
 /// Result of RuleSet.validateStructure. Empty errors == valid.
 class ValidationResult {
-  const ValidationResult(this.errors);
+  ValidationResult(List<ValidationError> errors)
+      : errors = List.unmodifiable(errors);
   final List<ValidationError> errors;
   bool get isValid => errors.isEmpty;
 }

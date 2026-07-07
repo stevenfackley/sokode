@@ -8,6 +8,9 @@ import 'level.dart';
 ///
 /// Canonical form: `crateIndexes` and `openGateIndexes` are always sorted
 /// ascending — equality, hashing, and stateDigest rely on it.
+///
+/// Equality is level-agnostic (player/crates/gates only) — never mix
+/// states from different levels in a shared set or map.
 class GridState {
   GridState({
     required this.level,
