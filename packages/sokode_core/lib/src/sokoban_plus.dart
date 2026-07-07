@@ -21,9 +21,16 @@ class SokobanPlus implements RuleSet {
       if (beyond == null) return const Blocked();
       if (state.hasCrateAt(beyond)) return const Blocked();
       if (!_canEnter(state, beyond, action)) return const Blocked();
-      return Moved(_withPush(state, playerTo: target, crateTo: beyond));
+      var next = _withPush(state, playerTo: target, crateTo: beyond);
+      // Deterministic order (ARCHITECTURE.md): crate toggle before player
+      // toggle, both against post-move occupancy.
+      next = _fireSwitch(next, beyond);
+      next = _fireSwitch(next, target);
+      return Moved(next);
     }
-    return Moved(_movePlayer(state, target));
+    var next = _movePlayer(state, target);
+    next = _fireSwitch(next, target);
+    return Moved(next);
   }
 
   /// Crate leaves [playerTo] (the player takes its cell) and lands on
@@ -38,6 +45,30 @@ class SokobanPlus implements RuleSet {
       playerIndex: playerTo,
       crateIndexes: crates,
       openGateIndexes: state.openGateIndexes,
+    );
+  }
+
+  /// If [arrivedAt] is a switch, toggles every gate of its channel in
+  /// ascending cell order: closed -> open always; open -> closed only if
+  /// unoccupied (spec §2.3 "never close an occupied gate"). Occupancy is
+  /// evaluated against [state]'s (post-move) positions.
+  GridState _fireSwitch(GridState state, int arrivedAt) {
+    final channel = state.level.tiles[arrivedAt].switchChannel;
+    if (channel == null) return state;
+    final open = state.openGateIndexes.toList();
+    for (var i = 0; i < state.level.cellCount; i++) {
+      if (state.level.tiles[i].gateChannel != channel) continue;
+      if (open.contains(i)) {
+        if (!state.isOccupied(i)) open.remove(i);
+      } else {
+        open.add(i);
+      }
+    }
+    return GridState(
+      level: state.level,
+      playerIndex: state.playerIndex,
+      crateIndexes: state.crateIndexes,
+      openGateIndexes: open,
     );
   }
 
