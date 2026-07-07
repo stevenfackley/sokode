@@ -1,5 +1,4 @@
 import 'level.dart';
-import 'tile.dart';
 
 /// Immutable runtime state: entity positions plus per-gate open/closed.
 ///
