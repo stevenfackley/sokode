@@ -1433,3 +1433,18 @@ published/imported levels are stored as codes. Web builds read
 - **Placeholder scan:** widget-layout freedom is explicitly bounded and contracted by literal tests (deliberate, documented in the header) — no TBDs.
 - **Type consistency:** `PlayerSession.moves`/`onSolvedWithMoves`, `MakerScreen.editorOf`, `MemoryLevelRepository`, `StoredCode.kind` values ('mine'/'imported'), and widget `ValueKey` names are used identically across Tasks 5–12.
 - **Known risks for executors:** Task 11/12's `editorOf` test hook needs constructor injection — flagged in-task; `path_provider` needs the conditional-import stub for web — flagged in-task; PlayerScreen keyboard tests need `flutter/services.dart` — imported in the literal test code.
+
+---
+
+## Execution notes (2026-07-09) — deltas applied during implementation
+
+Corrections made while executing; the shipped code (branch `feat/03-shells`) is authoritative where it differs from a task's original code block above.
+
+- **Test fixtures below the 4x4 dimension cap.** `_pushOnce` (Tasks 5-6) originally solved in one push but the win test asserts two moves — target moved one cell right (crate travels 7->8->9). `_solvable` (Task 9) was 5x3; it is encoded+imported, so a sub-4 height made `encode` assert and `import` reject it — bumped to 5x4. Levels that are only *played* (never encoded/validated) may stay any size.
+- **`JsonFileLevelRepository` split into its own file** (`json_file_level_repository.dart`) plus a conditional-import factory (`repository_factory_io.dart` / `_web.dart`), so `dart:io` never enters the `flutter build web` graph. The interface + `MemoryLevelRepository` stay in `level_repository.dart`.
+- **`MakerScreen` uses constructor-injected `EditorState`** instead of a `editorOf(WidgetTester)` hook — `flutter_test` cannot be referenced from `lib/` code. Tests construct and drive the injected editor directly.
+- **Publish re-verifies via `LevelImporter`**, not a direct `ReplayVerifier` — avoids the `Simulation` name collision between `package:flutter` (physics) and `sokode_core`, and reuses the exact import gate.
+- **`PlayerScreen` win dialog** returns a typed action and pops the screen on "Done" (returning to the launcher — level list or maker test-play); `find.byKey` skips offstage widgets, so the maker route must come back onstage.
+- **Import dialog captures text via `onChanged`**, not a `TextEditingController` — a controller disposed right after `showDialog` is still read by the dialog's exit animation.
+- **E2E test tears the first app down with a bare `SizedBox`** before booting the second `MaterialApp` — a same-type `MaterialApp` reuses the `Navigator`, carrying the open publish dialog over and obscuring the new tabs.
+- **Publish dialog is Copy + Close** (Clipboard); the OS share sheet is deferred to avoid a `share_plus` API-version risk in CI. Copying the code is fully functional for v1.

@@ -55,3 +55,13 @@ The import pipeline (`LevelImporter`) IS the publish gate: decode →
 through the same `Simulation` as play. Codes are proof-carrying; a forged
 impossible level fails at verify. CRC32 is integrity-only by design —
 tamper-resistance without a server would be theater (SECURITY.md).
+
+## Shell (Plan 03)
+
+The Flutter app holds zero game rules. `PlayerSession` and `EditorState` are presentation state over core calls; `BoardPainter`/`BoardView` render a `GridState`; `LevelRepository` (interface + JSON-file and in-memory impls) is the future-backend seam.
+
+Publishing is gated twice — the Publish button is disabled until a test-solve is captured, AND publish re-runs the level through the same `LevelImporter` (validate + verify) before saving. Any edit after a test-solve clears the captured solution, so a stale proof can never ship with a changed board.
+
+Levels persist as their own share codes (published and imported), since a code is already canonical and proof-carrying. Maker drafts persist as raw JSON because a v1 code requires an embedded solution, which a draft does not yet have.
+
+Web builds read a `sokode.com/#<code>` fragment client-side (it never reaches the server) and use the in-memory repository — the `dart:io` file repository sits behind a conditional import (`repository_factory_io.dart` vs `_web.dart`) so it never enters the `flutter build web` graph.
