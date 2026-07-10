@@ -1,4 +1,11 @@
+import 'repository_factory_web.dart'
+    if (dart.library.io) 'repository_factory_io.dart';
 import 'stored_level.dart';
+
+/// The platform-appropriate repository: a JSON file on native platforms, an
+/// in-memory store on web (no dart:io). Wired via conditional import so
+/// `flutter build web` never pulls dart:io into its graph.
+LevelRepository defaultRepository() => createDefaultRepository();
 
 /// Local persistence seam (spec §8): a future backend implements this same
 /// interface without touching game logic or UI.
