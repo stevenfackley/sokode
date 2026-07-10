@@ -6,6 +6,8 @@ import 'package:sokode_core/sokode_core.dart';
 import '../render/board_view.dart';
 import 'player_session.dart';
 
+enum _WinAction { replay, done }
+
 /// Maps a pan-end velocity to a move direction, or null if the fling was
 /// too weak. The dominant axis wins; ties resolve horizontal.
 Direction? directionFromPanVelocity(Offset velocity) {
@@ -73,7 +75,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _showWin() async {
     if (!mounted) return;
-    await showDialog<void>(
+    final action = await showDialog<_WinAction>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
@@ -82,25 +84,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
         content: Text('Solved in ${_session.moveCount} moves.'),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              setState(() {
-                _winHandled = false;
-                _session.reset();
-              });
-            },
+            onPressed: () => Navigator.of(context).pop(_WinAction.replay),
             child: const Text('Replay'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              widget.onSolved?.call();
-            },
+            onPressed: () => Navigator.of(context).pop(_WinAction.done),
             child: const Text('Done'),
           ),
         ],
       ),
     );
+    if (!mounted) return;
+    switch (action) {
+      case _WinAction.replay:
+        setState(() {
+          _winHandled = false;
+          _session.reset();
+        });
+      case _WinAction.done:
+      case null:
+        widget.onSolved?.call();
+        // Return to whoever pushed this screen (the level list or the maker's
+        // test-play). No-op if this screen is the navigation root.
+        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    }
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
