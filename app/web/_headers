@@ -1,0 +1,23 @@
+# Cloudflare Pages response headers. Flutter copies web/ verbatim into
+# build/web, so this file lands at the deploy root where Pages reads it.
+#
+# No Content-Security-Policy here on purpose: the Flutter web bootstrap
+# needs wasm compilation and inline module loading, and a CSP written
+# blind would break the renderer on some browsers and not others. Add one
+# only with a real browser test behind it.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+
+# The app shell must never be served stale: a cached index.html can pin
+# players to a build whose hashed assets are already gone.
+/index.html
+  Cache-Control: no-cache
+
+/flutter_bootstrap.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
