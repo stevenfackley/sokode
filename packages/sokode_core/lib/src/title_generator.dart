@@ -75,12 +75,38 @@ const List<String> titleNouns = [
   'Yard',
 ];
 
-/// Deterministic "Adjective Noun" title derived from the level's initial
-/// state digest — same level, same title, on every platform.
+/// Deterministic "Adjective Noun" title derived from the whole level —
+/// same level, same title, on every platform.
 String titleForLevel(Level level) {
-  final digest = stateDigest(GridState.initial(level));
+  final digest = _levelFingerprint(level);
   final adjective = titleAdjectives[digest % titleAdjectives.length];
   final noun =
       titleNouns[(digest ~/ titleAdjectives.length) % titleNouns.length];
   return '$adjective $noun';
+}
+
+/// Fingerprint covering dimensions, tiles AND initial entity placement.
+///
+/// [stateDigest] alone is not enough: it fingerprints the *mutable* state
+/// (player, crates, open gates) and is deliberately blind to the tile grid,
+/// so two levels that merely start their entities in the same cells collide
+/// however different their walls, targets, one-ways and gates are. That
+/// blindness is correct for the determinism golden test — and wrong for a
+/// title, which names a level, not a position.
+///
+/// Same arithmetic discipline as [stateDigest]: every intermediate stays
+/// under 2^53 so the Dart VM and JS agree.
+int _levelFingerprint(Level level) {
+  const modulus = 1000000007;
+  var h = stateDigest(GridState.initial(level));
+  void mix(int v) {
+    h = (h * 31 + v + 2) % modulus;
+  }
+
+  mix(level.width);
+  mix(level.height);
+  for (final tile in level.tiles) {
+    mix(tile.nibble);
+  }
+  return h;
 }

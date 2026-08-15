@@ -36,4 +36,39 @@ void main() {
     ]);
     expect(titleForLevel(other), isNot(titleForLevel(level())));
   });
+
+  test('tiles are part of the identity, not just entity placement', () {
+    // Same player cell, same crate cell, same (empty) open-gate set — only
+    // the tile grid differs. Titles that ignored the grid collided here and
+    // shipped four identically-named sample levels.
+    final plain = levelFromAscii([
+      '######',
+      r'#@$ .#',
+      '#    #',
+      '######',
+    ]);
+    final gated = levelFromAscii([
+      '######',
+      r'#@$].#',
+      '#   a#',
+      '######',
+    ]);
+    expect(titleForLevel(gated), isNot(titleForLevel(plain)));
+  });
+
+  test('dimensions are part of the identity', () {
+    final wide = levelFromAscii([
+      '#######',
+      r'#@$ . #',
+      '#     #',
+      '#######',
+    ]);
+    final narrow = levelFromAscii([
+      '######',
+      r'#@$ .#',
+      '#    #',
+      '######',
+    ]);
+    expect(titleForLevel(wide), isNot(titleForLevel(narrow)));
+  });
 }
