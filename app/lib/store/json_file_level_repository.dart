@@ -31,14 +31,15 @@ class JsonFileLevelRepository implements LevelRepository {
     return _file = File('${dir.path}/sokode_levels.json');
   }
 
-  Future<(List<StoredCode>, List<DraftLevel>)> _read() async {
+  static (List<StoredCode>, List<DraftLevel>, Set<String>) get _empty =>
+      (<StoredCode>[], <DraftLevel>[], <String>{});
+
+  Future<(List<StoredCode>, List<DraftLevel>, Set<String>)> _read() async {
     final file = await _resolveFile();
-    if (!await file.exists()) return (<StoredCode>[], <DraftLevel>[]);
+    if (!await file.exists()) return _empty;
     try {
       final root = jsonDecode(await file.readAsString());
-      if (root is! Map<String, Object?>) {
-        return (<StoredCode>[], <DraftLevel>[]);
-      }
+      if (root is! Map<String, Object?>) return _empty;
       final codes = <StoredCode>[
         for (final c in (root['codes'] as List? ?? []))
           StoredCode.fromJson((c as Map).cast<String, Object?>()),
@@ -47,17 +48,24 @@ class JsonFileLevelRepository implements LevelRepository {
         for (final d in (root['drafts'] as List? ?? []))
           ?DraftLevel.fromJson((d as Map).cast<String, Object?>()),
       ];
-      return (codes, drafts);
+      final flags = <String>{
+        for (final f in (root['flags'] as List? ?? [])) f as String,
+      };
+      return (codes, drafts, flags);
     } on Object {
       // Corrupt store: fail open with an empty library rather than crash.
-      return (<StoredCode>[], <DraftLevel>[]);
+      return _empty;
     }
   }
 
-  Future<void> _write(List<StoredCode> codes, List<DraftLevel> drafts) async {
+  Future<void> _write(
+    List<StoredCode> codes,
+    List<DraftLevel> drafts,
+    Set<String> flags,
+  ) async {
     final file = await _resolveFile();
     final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(encodeStoreFile(codes, drafts), flush: true);
+    await tmp.writeAsString(encodeStoreFile(codes, drafts, flags), flush: true);
     await tmp.rename(file.path);
   }
 
@@ -68,34 +76,43 @@ class JsonFileLevelRepository implements LevelRepository {
   Future<List<DraftLevel>> loadDrafts() async => (await _read()).$2;
 
   @override
+  Future<Set<String>> loadFlags() async => (await _read()).$3;
+
+  @override
   Future<void> saveCode(StoredCode code) async {
-    final (codes, drafts) = await _read();
+    final (codes, drafts, flags) = await _read();
     codes
       ..removeWhere((c) => c.code == code.code)
       ..add(code);
-    await _write(codes, drafts);
+    await _write(codes, drafts, flags);
   }
 
   @override
   Future<void> saveDraft(DraftLevel draft) async {
-    final (codes, drafts) = await _read();
+    final (codes, drafts, flags) = await _read();
     drafts
       ..removeWhere((d) => d.name == draft.name)
       ..add(draft);
-    await _write(codes, drafts);
+    await _write(codes, drafts, flags);
   }
 
   @override
   Future<void> deleteCode(String code) async {
-    final (codes, drafts) = await _read();
+    final (codes, drafts, flags) = await _read();
     codes.removeWhere((c) => c.code == code);
-    await _write(codes, drafts);
+    await _write(codes, drafts, flags);
   }
 
   @override
   Future<void> deleteDraft(String name) async {
-    final (codes, drafts) = await _read();
+    final (codes, drafts, flags) = await _read();
     drafts.removeWhere((d) => d.name == name);
-    await _write(codes, drafts);
+    await _write(codes, drafts, flags);
+  }
+
+  @override
+  Future<void> setFlag(String flag) async {
+    final (codes, drafts, flags) = await _read();
+    await _write(codes, drafts, flags..add(flag));
   }
 }

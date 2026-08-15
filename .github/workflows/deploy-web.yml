@@ -1,0 +1,62 @@
+name: deploy-web
+
+# Static Flutter web build -> Cloudflare Pages (spec phase 6.5).
+#
+# The job is gated on the repository variable CLOUDFLARE_PAGES_PROJECT so a
+# repo without Cloudflare wired up skips cleanly instead of failing red on
+# every push. To turn it on:
+#
+#   1. Create a Cloudflare Pages project (direct upload, no git integration —
+#      this workflow is the only thing that should deploy).
+#   2. gh variable set CLOUDFLARE_PAGES_PROJECT --body sokode
+#   3. gh secret set CLOUDFLARE_API_TOKEN     (scope: Cloudflare Pages:Edit)
+#      gh secret set CLOUDFLARE_ACCOUNT_ID
+#
+# Attaching sokode.com is a separate, manual step and is blocked until the
+# domain is registered; until then the deploy lands on <project>.pages.dev,
+# where the #<code> fragment flow works identically.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ vars.CLOUDFLARE_PAGES_PROJECT != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install dependencies
+        working-directory: app
+        run: flutter pub get
+      # Tests gate the deploy: a build that cannot pass its own import gate
+      # must never reach players, and this workflow does not wait on ci.yml.
+      - name: Test
+        working-directory: app
+        run: flutter test
+      # Served from the domain root; --base-href keeps that explicit rather
+      # than depending on the default.
+      - name: Build
+        working-directory: app
+        run: flutter build web --release --base-href /
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: app
+          command: >-
+            pages deploy build/web
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=${{ github.ref_name }}

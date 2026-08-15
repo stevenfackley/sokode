@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/level_list_screen.dart';
+import 'screens/app_bootstrap.dart';
 import 'store/level_repository.dart';
 
 void main() => runApp(const SokodeApp());
@@ -19,7 +19,7 @@ class SokodeApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sokode',
       theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-      home: LevelListScreen(
+      home: AppBootstrap(
         repository: defaultRepository(),
         initialImportCode: fragment,
       ),

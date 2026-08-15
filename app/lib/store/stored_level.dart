@@ -73,9 +73,13 @@ class DraftLevel {
   }
 }
 
-String encodeStoreFile(List<StoredCode> codes, List<DraftLevel> drafts) =>
-    jsonEncode({
-      'version': 1,
-      'codes': [for (final c in codes) c.toJson()],
-      'drafts': [for (final d in drafts) d.toJson()],
-    });
+String encodeStoreFile(
+  List<StoredCode> codes,
+  List<DraftLevel> drafts,
+  Set<String> flags,
+) => jsonEncode({
+  'version': 1,
+  'codes': [for (final c in codes) c.toJson()],
+  'drafts': [for (final d in drafts) d.toJson()],
+  'flags': flags.toList()..sort(),
+});

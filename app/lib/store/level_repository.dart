@@ -16,12 +16,26 @@ abstract interface class LevelRepository {
   Future<void> saveDraft(DraftLevel draft);
   Future<void> deleteCode(String code);
   Future<void> deleteDraft(String name);
+
+  /// Sticky one-shot UI markers (currently just [onboardingSeenFlag]).
+  ///
+  /// A set of opaque strings rather than a field per feature: this is the
+  /// app's only storage seam, and a growing interface would force every
+  /// future implementation to grow with it. A backend that has no use for
+  /// them can return an empty set forever without breaking play.
+  Future<Set<String>> loadFlags();
+  Future<void> setFlag(String flag);
 }
+
+/// Marks that the first-run walkthrough has been shown. Versioned in the
+/// name so a materially rewritten walkthrough can show once more.
+const String onboardingSeenFlag = 'onboarding-seen-v1';
 
 /// In-memory implementation: web fallback (no dart:io) and test double.
 class MemoryLevelRepository implements LevelRepository {
   final List<StoredCode> _codes = [];
   final List<DraftLevel> _drafts = [];
+  final Set<String> _flags = {};
 
   @override
   Future<List<StoredCode>> loadCodes() async => List.of(_codes);
@@ -50,4 +64,10 @@ class MemoryLevelRepository implements LevelRepository {
   @override
   Future<void> deleteDraft(String name) async =>
       _drafts.removeWhere((d) => d.name == name);
+
+  @override
+  Future<Set<String>> loadFlags() async => Set.of(_flags);
+
+  @override
+  Future<void> setFlag(String flag) async => _flags.add(flag);
 }
