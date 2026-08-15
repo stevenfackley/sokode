@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:sokode_core/sokode_core.dart';
 
+import '../content/seed_library.dart';
 import '../import/import_strings.dart';
 import '../make/maker_screen.dart';
 import '../play/player_screen.dart';
 import '../store/level_repository.dart';
 import '../store/stored_level.dart';
+import 'onboarding_screen.dart';
 
-/// Home screen: three tabs (Mine / Imported / Drafts), a gated paste-import,
-/// and a "new level" button into the maker. Pasting a code is validated
-/// input, not free text — a code that fails the import gate is never saved.
+/// Home screen: four tabs (Samples / Mine / Imported / Drafts), a gated
+/// paste-import, and a "new level" button into the maker. Pasting a code is
+/// validated input, not free text — a code that fails the import gate is
+/// never saved.
 class LevelListScreen extends StatefulWidget {
   const LevelListScreen({
     super.key,
     required this.repository,
     this.importer = const LevelImporter(SokobanPlus()),
     this.initialImportCode,
+    this.seeds,
   });
 
   final LevelRepository repository;
@@ -25,6 +29,10 @@ class LevelListScreen extends StatefulWidget {
   /// web fragment). Runs through the same gate as a manual paste.
   final String? initialImportCode;
 
+  /// Shipped sample levels. Defaults to the generated catalog; injectable so
+  /// tests can drive the tab without depending on shipped content.
+  final List<SeedEntry>? seeds;
+
   @override
   State<LevelListScreen> createState() => _LevelListScreenState();
 }
@@ -32,6 +40,7 @@ class LevelListScreen extends StatefulWidget {
 class _LevelListScreenState extends State<LevelListScreen> {
   List<StoredCode> _codes = [];
   List<DraftLevel> _drafts = [];
+  late final List<SeedEntry> _seeds = widget.seeds ?? loadSeedLibrary();
 
   @override
   void initState() {
@@ -119,12 +128,18 @@ class _LevelListScreenState extends State<LevelListScreen> {
   Future<void> _play(StoredCode stored) async {
     final outcome = decode(stored.code);
     if (outcome is! DecodeSuccess) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerScreen(level: outcome.level, title: stored.title),
-      ),
-    );
+    await _open(outcome.level, stored.title);
   }
+
+  Future<void> _open(Level level, String title) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PlayerScreen(level: level, title: title),
+    ),
+  );
+
+  Future<void> _showHowToPlay() => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()));
 
   Future<void> _newLevel() async {
     await Navigator.of(context).push(
@@ -143,11 +158,17 @@ class _LevelListScreenState extends State<LevelListScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Sokode'),
           actions: [
+            IconButton(
+              key: const ValueKey('how-to-play-button'),
+              tooltip: 'How to play',
+              icon: const Icon(Icons.help_outline),
+              onPressed: _showHowToPlay,
+            ),
             IconButton(
               key: const ValueKey('import-button'),
               tooltip: 'Import a code',
@@ -156,7 +177,9 @@ class _LevelListScreenState extends State<LevelListScreen> {
             ),
           ],
           bottom: const TabBar(
+            isScrollable: true,
             tabs: [
+              Tab(text: 'Samples'),
               Tab(text: 'Mine'),
               Tab(text: 'Imported'),
               Tab(text: 'Drafts'),
@@ -164,7 +187,12 @@ class _LevelListScreenState extends State<LevelListScreen> {
           ),
         ),
         body: TabBarView(
-          children: [_codeList('mine'), _codeList('imported'), _draftList()],
+          children: [
+            _sampleList(),
+            _codeList('mine'),
+            _codeList('imported'),
+            _draftList(),
+          ],
         ),
         floatingActionButton: FloatingActionButton(
           key: const ValueKey('new-level'),
@@ -173,6 +201,44 @@ class _LevelListScreenState extends State<LevelListScreen> {
         ),
       ),
     );
+  }
+
+  /// Samples ship with the app and need no storage: they are ordinary codes
+  /// that have already passed the import gate in [loadSeedLibrary].
+  Widget _sampleList() {
+    if (_seeds.isEmpty) {
+      return const Center(child: Text('No sample levels in this build.'));
+    }
+    final rows = <Widget>[];
+    var number = 0;
+    String? currentPack;
+    for (final seed in _seeds) {
+      if (seed.pack != currentPack) {
+        currentPack = seed.pack;
+        number = 0;
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Text(
+              seed.pack,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+        );
+      }
+      number++;
+      rows.add(
+        ListTile(
+          key: ValueKey('seed-${seed.code}'),
+          // The number disambiguates the rare pair of derived titles that
+          // land on the same word pair; it is never user text.
+          title: Text('$number. ${seed.title}'),
+          subtitle: Text('Par ${seed.parMoves}'),
+          onTap: () => _open(seed.level, seed.title),
+        ),
+      );
+    }
+    return ListView(children: rows);
   }
 
   Widget _codeList(String kind) {
