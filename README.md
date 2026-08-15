@@ -8,22 +8,25 @@ Every share code embeds the author's solution replay. The recipient's device re-
 
 | Milestone | State |
 |---|---|
-| Core engine (`sokode_core`) — grid, Sokoban+ rules, simulation | ✅ merged (PR #1, 52 tests) |
-| Share-code codec + import gate | 📋 planned (`docs/superpowers/plans/…02-codec-gate.md`) |
-| Flutter player + maker shells | 📋 planned |
-| Seed levels, web player at sokode.com | 📋 planned |
+| Core engine (`sokode_core`) — grid, Sokoban+ rules, simulation | ✅ merged (Plan 01) |
+| Share-code codec + import gate | ✅ merged (Plan 02) |
+| Flutter player + maker shells | ✅ merged (Plan 03) |
+| Seed levels + onboarding | ✅ 23 sample levels across 4 packs (Plan 04) |
+| Web deploy | ⚙️ workflow ready, waiting on a Cloudflare project |
+| sokode.com / sokode.app | ⛔ domains not registered yet |
 
 ## Layout
 
 ```
 packages/sokode_core/   pure Dart engine — zero Flutter imports (CI-enforced)
-app/                    Flutter shell (player, maker, level store) — Plan 03
+  tool/                 offline content build: sample levels -> share codes
+app/                    Flutter shell (player, maker, level store, samples)
 docs/superpowers/       design spec + implementation plans
 ```
 
-## Build & test (core)
+## Build & test
 
-Requires Dart SDK ≥ 3.5.
+Core — requires Dart SDK ≥ 3.5:
 
 ```sh
 cd packages/sokode_core
@@ -33,7 +36,49 @@ dart analyze --fatal-infos
 dart test
 ```
 
-CI (`.github/workflows/ci.yml`) runs exactly those four commands on every PR.
+App — requires Flutter stable:
+
+```sh
+cd app
+flutter pub get
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+flutter build web --release
+```
+
+CI (`.github/workflows/ci.yml`) runs exactly those commands on every PR.
+
+## Sample levels
+
+The bundled levels are generated, never hand-edited. Author them as ASCII
+maps in `packages/sokode_core/tool/seed_catalog.dart`, then:
+
+```sh
+cd packages/sokode_core
+dart run tool/generate_seed_levels.dart
+dart format ../../app/lib/content/seed_levels.dart
+```
+
+The generator solves every board breadth-first through the real simulation
+and writes proof-carrying share codes. It refuses to write if any level is
+unsolvable, structurally invalid, duplicated, fails its own import gate, or
+collides with another level's derived title.
+
+## Deploying the web player
+
+`.github/workflows/deploy-web.yml` builds, tests, and direct-uploads to
+Cloudflare Pages. It stays skipped until the account is wired up:
+
+```sh
+gh variable set CLOUDFLARE_PAGES_PROJECT --body sokode
+gh secret set CLOUDFLARE_API_TOKEN      # scope: Cloudflare Pages:Edit
+gh secret set CLOUDFLARE_ACCOUNT_ID
+```
+
+Attaching `sokode.com` is a manual Cloudflare step and is blocked until the
+domain is registered; until then the build lands on `<project>.pages.dev`,
+where the `#<code>` share flow behaves identically.
 
 ## Documents
 

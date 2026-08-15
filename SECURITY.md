@@ -62,6 +62,43 @@ not send to the server — shared levels don't appear in hosting access logs.
   fake wins — affecting only the cheater's own device, since there are no
   leaderboards or shared state in v1.
 
+## Bundled sample levels
+
+The sample levels that ship with the app are ordinary share codes, not a
+privileged content format. They are decoded through the same
+`LevelImporter` a pasted code meets, and a seed whose embedded proof fails
+to verify is dropped rather than played. This is deliberate: a "trusted
+content" path would be a second, less-exercised code path into the game
+state, and the first bug in it would be invisible until a player hit it.
+
+Consequences worth stating plainly:
+
+- A tampered build can swap the codes in `app/lib/content/seed_levels.dart`
+  — but that is the same power a tampered build already has over
+  everything else on the device, and it reaches no one else.
+- Sample codes are shareable and mintable like any other. There is nothing
+  to forge: an authored level offers no privilege.
+- A rules change that invalidates an old proof degrades a seed to "dropped
+  from the list", never to a level that cannot be finished. CI catches it
+  first (`app/test/seed_levels_test.dart`).
+
+## Web deployment
+
+The web build is static files on Cloudflare Pages. It has no backend, no
+API key, and no telemetry, so there is no client secret to leak. Two
+properties are load-bearing rather than incidental:
+
+- **Shared levels stay in the URL fragment.** `sokode.com/#<code>` never
+  puts the code in the request line, so shared levels do not appear in
+  server access logs. Moving the code to a query parameter or a path
+  segment would silently break that; do not.
+- **Response headers are checked in** (`app/web/_headers`): `nosniff`,
+  `no-referrer`, `SAMEORIGIN` framing, and an empty permissions policy.
+  There is no `Content-Security-Policy` yet — the Flutter bootstrap needs
+  wasm compilation and inline module loading, and a policy written without
+  a real browser test behind it would break the renderer on some browsers
+  and not others. Adding one is an open item, not an oversight.
+
 ## Standing rules for future work
 
 1. No secrets in the client. Ad/analytics/feature-flag keys that grant
