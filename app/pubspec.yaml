@@ -38,7 +38,7 @@ dependencies:
   sokode_core:
     path: ../packages/sokode_core
   path_provider: ^2.1.0
-  share_plus: ^10.0.0
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
