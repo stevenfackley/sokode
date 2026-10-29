@@ -79,6 +79,6 @@ solvability proof is `ReplayVerifier`'s — both run in the import pipeline
 (`LevelImporter`) after a successful decode. The CRC is integrity only;
 without a server there is no tamper-resistance, by design (see SECURITY.md).
 
-> Implementation status: this document is the spec of record, written ahead
-> of the code per the v1 design. The codec lands with Plan 02
-> (`docs/superpowers/plans/2026-07-06-sokode-02-codec-gate.md`).
+> Implementation: `packages/sokode_core/lib/src/level_codec.dart` (Plan 02,
+> merged; plan at `docs/superpowers/plans/2026-07-06-sokode-02-codec-gate.md`).
+> This document remains the spec of record.
